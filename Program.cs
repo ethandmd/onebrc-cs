@@ -77,10 +77,11 @@ class Program
                 lentry.min = Math.Min(lentry.min, rentry.min);
                 lentry.sum += rentry.sum;
                 lentry.cnt += rentry.cnt;
+                left[k] = lentry;
             }
             else
             {
-                left[k] = right[k];
+                left[k] = rentry;
             }
         }
     }
