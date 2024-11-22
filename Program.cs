@@ -70,7 +70,6 @@ class Program
         {
             string k = (string)iter.Key;
             WeatherEntry v = (WeatherEntry)iter.Value;
-            Console.WriteLine($"{v.min};{v.sum / v.cnt}{v.max}");
             if (left.Contains(k))
             {
                 var lentry = (WeatherEntry)left[k];
