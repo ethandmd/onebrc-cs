@@ -1,5 +1,4 @@
-﻿using System.Collections;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO.MemoryMappedFiles;
 using System.Runtime.CompilerServices;
 
@@ -15,7 +14,7 @@ class Program
         long cz = fz / nproc;
         var threadHandles = (new Thread[nproc]).AsSpan();
         var mapperHandles = (new Mapper[nproc]).AsSpan();
-        Hashtable results = new Hashtable();
+        Dictionary<string, WeatherEntry> results = new Dictionary<string, WeatherEntry>();
 
         using var mmf = MemoryMappedFile.CreateFromFile(filePath, FileMode.Open, "measurements");
         using var accessor = mmf.CreateViewAccessor((long)oz, (long)fz);
@@ -51,9 +50,9 @@ class Program
             var m = mapperHandles[i];
             Merge(results, m.GetResults());
         }
-        foreach (DictionaryEntry iter in results)
+        foreach (KeyValuePair<string, WeatherEntry> iter in results)
         {
-            WeatherEntry v = (WeatherEntry)iter.Value;
+            var v = iter.Value;
             Console.WriteLine($"{iter.Key}: {v.min};{v.sum / v.cnt};{v.max}");
         }
         t0.Stop();
@@ -64,24 +63,23 @@ class Program
         }
     }
 
-    static void Merge(Hashtable left, Hashtable right) // Merge right into left
+    static void Merge(Dictionary<string, WeatherEntry> left, Dictionary<string, WeatherEntry> right) // Merge right into left
     {
-        foreach (DictionaryEntry iter in right)
+        foreach (KeyValuePair<string, WeatherEntry> iter in right)
         {
-            string k = (string)iter.Key;
-            WeatherEntry rentry = (WeatherEntry)iter.Value;
-            if (left.Contains(k))
+            WeatherEntry lentry;
+            WeatherEntry rentry = iter.Value;
+            if (left.TryGetValue(iter.Key, out lentry))
             {
-                var lentry = (WeatherEntry)left[k];
                 lentry.max = Math.Max(lentry.max, rentry.max);
                 lentry.min = Math.Min(lentry.min, rentry.min);
                 lentry.sum += rentry.sum;
                 lentry.cnt += rentry.cnt;
-                left[k] = lentry;
+                left[iter.Key] = lentry;
             }
             else
             {
-                left[k] = rentry;
+                left.Add(iter.Key, iter.Value);
             }
         }
     }
@@ -99,7 +97,7 @@ class Mapper
 {
     TimeSpan _ts = TimeSpan.Zero;
     long _id;
-    Hashtable _perThreadMap = new Hashtable();
+    Dictionary<string, WeatherEntry> _perThreadMap = new Dictionary<string, WeatherEntry>();
     MemoryMappedViewAccessor _accessor;
 
     public Mapper(long id, MemoryMappedViewAccessor accessor)
@@ -108,7 +106,7 @@ class Mapper
         _accessor = accessor;
     }
 
-    public Hashtable GetResults()
+    public Dictionary<string, WeatherEntry> GetResults()
     {
         return _perThreadMap;
     }
@@ -177,9 +175,9 @@ class Mapper
             }
             var strT = System.Text.Encoding.UTF8.GetString(tempBuf, cur);
             var temp = Convert.ToSingle(strT);
-            if (_perThreadMap.Contains(name))
+            WeatherEntry entry;
+            if (_perThreadMap.TryGetValue(name, out entry))
             {
-                WeatherEntry entry = (WeatherEntry)_perThreadMap[name];
                 entry.cnt += 1;
                 entry.sum += temp;
                 entry.min = Math.Min(entry.min, temp);
