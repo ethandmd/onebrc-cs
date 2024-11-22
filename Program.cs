@@ -29,7 +29,7 @@ class Program
         {
             long chunkEnd = Math.Min(chunkStart + cz, fz - 1); // Don't include EOF
             byte* mmPtr = null;
-            while (accessor.ReadByte(chunkEnd) != newLine)
+            while (accessor.ReadByte(chunkEnd) != newLine && chunkEnd < fz)
             {
                 chunkEnd++;
             }
@@ -51,7 +51,6 @@ class Program
             var m = mapperHandles[i];
             Merge(results, m.GetResults());
         }
-
         foreach (DictionaryEntry iter in results)
         {
             WeatherEntry v = (WeatherEntry)iter.Value;
@@ -70,11 +69,10 @@ class Program
         foreach (DictionaryEntry iter in right)
         {
             string k = (string)iter.Key;
-            WeatherEntry v = (WeatherEntry)iter.Value;
+            WeatherEntry rentry = (WeatherEntry)iter.Value;
             if (left.Contains(k))
             {
                 var lentry = (WeatherEntry)left[k];
-                var rentry = (WeatherEntry)right[k];
                 lentry.max = Math.Max(lentry.max, rentry.max);
                 lentry.min = Math.Min(lentry.min, rentry.min);
                 lentry.sum += rentry.sum;
@@ -181,21 +179,24 @@ class Mapper
             if (_perThreadMap.Contains(name))
             {
                 WeatherEntry entry = (WeatherEntry)_perThreadMap[name];
-                entry.cnt++;
+                entry.cnt += 1;
                 entry.sum += temp;
                 entry.min = Math.Min(entry.min, temp);
                 entry.max = Math.Max(entry.max, temp);
             }
             else
             {
-                WeatherEntry entry = new WeatherEntry();
-                entry.cnt = 1;
-                entry.sum = temp;
-                entry.min = temp;
-                entry.max = temp;
-                _perThreadMap.Add(name, entry);
+                WeatherEntry newEntry = new WeatherEntry
+                {
+                    cnt = 1,
+                    sum = temp,
+                    min = temp,
+                    max = temp
+                };
+                _perThreadMap.Add(name, newEntry);
             }
         }
+        viewHandle.ReleasePointer();
         t0.Stop();
         _ts = t0.Elapsed;
     }
