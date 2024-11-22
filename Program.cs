@@ -1,13 +1,14 @@
 ﻿using System.Collections;
 using System.Diagnostics;
 using System.IO.MemoryMappedFiles;
+using System.Runtime.CompilerServices;
 
 class Program
 {
     unsafe static void Main()
     {
+        int nproc = 10; //Environment.ProcessorCount;
         Stopwatch t0 = Stopwatch.StartNew();
-        int nproc = 10;
         string filePath = "../measurements.txt";
         long oz = 0x0;
         long fz = 0x3b4cf0fa8;
@@ -30,7 +31,7 @@ class Program
             byte* mmPtr = null;
             while (accessor.ReadByte(chunkEnd) != newLine)
             {
-                chunkEnd += 0x8;
+                chunkEnd++;
             }
             var view = mmf.CreateViewAccessor(chunkStart, chunkEnd - chunkStart, MemoryMappedFileAccess.Read);
             mapperHandles[i] = new Mapper(i, view);
@@ -89,9 +90,9 @@ class Program
 
 struct WeatherEntry
 {
-    public double min;
-    public double sum;
-    public double max;
+    public float min;
+    public float sum;
+    public float max;
     public Int32 cnt;
 }
 
@@ -118,6 +119,7 @@ class Mapper
         return $"Thread {_id} elapsed: {_ts}";
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public unsafe void Accumulate()
     {
         var t0 = Stopwatch.StartNew();
@@ -175,7 +177,7 @@ class Mapper
                 cur++;
             }
             var strT = System.Text.Encoding.UTF8.GetString(tempBuf, cur);
-            var temp = Convert.ToDouble(strT);
+            var temp = Convert.ToSingle(strT);
             if (_perThreadMap.Contains(name))
             {
                 WeatherEntry entry = (WeatherEntry)_perThreadMap[name];
